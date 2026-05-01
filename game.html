@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>落ち着いたヘンテコ調合室 - 鑑定版</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --panel-color: #1e1e1e;
+            --accent-color: #72efdd; 
+            --sub-color: #4895ef;
+            --text-main: #ffffff;
+            --text-sub: #cfcfcf;
+            --btn-bg: #2a2a2a;
+            
+            /* レア度カラー */
+            --color-normal: #888888;
+            --color-rare: #4895ef;
+            --color-sr: #ffca3a;
+        }
+
+        body {
+            margin: 0; padding: 0;
+            font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            overflow: hidden;
+            touch-action: none;
+            user-select: none;
+        }
+
+        #game-container {
+            display: flex; flex-direction: column;
+            height: 100vh; max-width: 500px; margin: 0 auto;
+            position: relative;
+        }
+
+        #display-section {
+            flex: 1.2; display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            padding: 20px;
+        }
+
+        #cauldron-wrap { position: relative; margin-bottom: 20px; }
+        #cauldron { font-size: 130px; z-index: 5; position: relative; transition: transform 0.3s; }
+        #liquid {
+            position: absolute; bottom: 40px; left: 35px;
+            width: 105px; height: 55px;
+            background: var(--sub-color); border-radius: 50%;
+            filter: blur(4px); opacity: 0.7; z-index: 3;
+            transition: background 0.8s ease;
+        }
+
+        #status-msg {
+            font-size: 20px; font-weight: bold; color: var(--text-main);
+            text-align: center; min-height: 2.5em; line-height: 1.4; margin-bottom: 15px;
+        }
+
+        #mix-progress-bar {
+            width: 80%; height: 12px; background: #333; border-radius: 10px;
+            display: none; overflow: hidden; border: 1px solid #444;
+        }
+        #mix-progress-fill { width: 0%; height: 100%; background: var(--accent-color); }
+
+        #ui-section {
+            background-color: var(--panel-color);
+            padding: 20px; border-top: 2px solid #333;
+            border-radius: 25px 25px 0 0; flex: 1;
+        }
+
+        .ingredient-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .ingredient-btn {
+            position: relative; aspect-ratio: 1; background: var(--btn-bg); border: 1px solid #444;
+            border-radius: 15px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .ingredient-btn:active { transform: scale(0.92); background: #444; }
+        .count-badge {
+            position: absolute; top: -5px; right: -5px; background: #e63946; color: white;
+            border-radius: 50%; width: 24px; height: 24px; font-size: 14px;
+            display: none; align-items: center; justify-content: center; font-weight: bold;
+        }
+
+        .ingredient-icon { font-size: 32px; margin-bottom: 4px; }
+        .ingredient-name { font-size: 11px; color: var(--text-sub); font-weight: bold; }
+
+        #ladle { position: fixed; font-size: 70px; z-index: 1000; pointer-events: none; display: none; transform: translate(-50%, -50%); }
+
+        /* --- 結果画面の演出 --- */
+        #result-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.96); display: none; flex-direction: column;
+            align-items: center; justify-content: center; padding: 20px; z-index: 3000;
+        }
+
+        #result-card {
+            background: var(--panel-color); padding: 30px; border-radius: 24px;
+            width: 90%; max-width: 400px; text-align: center;
+            border: 2px solid #444; transition: all 0.5s;
+        }
+
+        /* レア度別カードスタイル */
+        #result-card.rare { border-color: var(--color-rare); box-shadow: 0 0 20px rgba(72, 149, 239, 0.4); }
+        #result-card.sr { border-color: var(--color-sr); box-shadow: 0 0 40px rgba(255, 202, 58, 0.6); animation: sr-glow 2s infinite alternate; }
+
+        @keyframes sr-glow {
+            from { transform: scale(1); box-shadow: 0 0 30px rgba(255, 202, 58, 0.5); }
+            to { transform: scale(1.02); box-shadow: 0 0 60px rgba(255, 202, 58, 0.8); }
+        }
+
+        .rarity-badge {
+            display: inline-block; padding: 4px 15px; border-radius: 20px;
+            font-size: 12px; font-weight: bold; margin-bottom: 10px; color: #000;
+        }
+        .badge-normal { background: var(--color-normal); }
+        .badge-rare { background: var(--color-rare); color: #fff; }
+        .badge-sr { background: var(--color-sr); animation: pulse 1s infinite; }
+
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
+
+        #result-name { font-size: 26px; margin: 10px 0; font-weight: bold; }
+        #result-desc {
+            font-size: 16px; line-height: 1.8; margin: 20px 0;
+            color: #eeeeee; text-align: left; background: #111;
+            padding: 20px; border-radius: 12px; border-left: 5px solid #444;
+        }
+
+        .retry-btn {
+            background: var(--accent-color); color: #000; border: none;
+            padding: 15px 40px; border-radius: 30px; font-size: 18px; font-weight: bold; margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="display-section">
+        <div id="cauldron-wrap">
+            <div id="cauldron">🥣</div>
+            <div id="liquid"></div>
+        </div>
+        <div id="status-msg">素材を3つ選んでください</div>
+        <div id="mix-progress-bar"><div id="mix-progress-fill"></div></div>
+    </div>
+
+    <div id="ladle">🥄</div>
+
+    <div id="ui-section">
+        <div class="ingredient-grid" id="ingredient-grid"></div>
+    </div>
+
+    <div id="result-overlay">
+        <div id="result-card" id="card-body">
+            <div id="rarity-label" class="rarity-badge">NORMAL</div>
+            <div id="result-potion" style="font-size: 80px;">🧪</div>
+            <h2 id="result-name">薬の名前</h2>
+            <div id="result-desc">記録...</div>
+            <button class="retry-btn" onclick="resetGame()">もう一度作る</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const ingredients = [
+        { id: 0, name: '多色スライム', icon: '🌈', color: '#9d4edd', tags: ['粘性のある', '流動的な'] },
+        { id: 1, name: '乾燥した布', icon: '🧦', color: '#7f5539', tags: ['繊維質の', '吸水性の'] },
+        { id: 2, name: '共鳴する根', icon: '🌵', color: '#588157', tags: ['振動する', '有機的な'] },
+        { id: 3, name: '発光する砂', icon: '✨', color: '#e9c46a', tags: ['微細な', '光を帯びた'] },
+        { id: 4, name: '澄んだ滴', icon: '💧', color: '#48cae4', tags: ['純度の高い', '冷却された'] },
+        { id: 5, name: '高密度電池', icon: '🔋', color: '#ffea00', tags: ['帯電した', '人工的な'] },
+        { id: 6, name: '硝子の球体', icon: '👁️', color: '#dee2e6', tags: ['透明な', '反射する'] },
+        { id: 7, name: '乾燥唐辛子', icon: '🌶️', color: '#e63946', tags: ['刺激の強い', '揮発性の'] },
+        { id: 8, name: '古い骨董品', icon: '🦷', color: '#f1f1f1', tags: ['硬質な', '歴史のある'] },
+        { id: 9, name: '情報端末', icon: '📱', color: '#0077b6', tags: ['複雑な', '電子的な'] },
+        { id: 10, name: '灰色の石礫', icon: '💀', color: '#4a4e69', tags: ['無機質な', '沈殿する'] },
+        { id: 11, name: '獣の体毛', icon: '🐱', color: '#f4a261', tags: ['柔軟な', 'ふわふわした'] }
+    ];
+
+    let selected = [];
+    let mixProgress = 0;
+    let isMixingPhase = false;
+    let lastX = 0, lastY = 0;
+
+    const grid = document.getElementById('ingredient-grid');
+    const statusMsg = document.getElementById('status-msg');
+    const liquid = document.getElementById('liquid');
+    const ladle = document.getElementById('ladle');
+    const progressFill = document.getElementById('mix-progress-fill');
+    const progressContainer = document.getElementById('mix-progress-bar');
+
+    ingredients.forEach(ing => {
+        const btn = document.createElement('div');
+        btn.className = 'ingredient-btn';
+        btn.innerHTML = `<div class="count-badge" id="badge-${ing.id}">0</div><span class="ingredient-icon">${ing.icon}</span><span class="ingredient-name">${ing.name}</span>`;
+        btn.onpointerdown = (e) => { e.preventDefault(); selectIngredient(ing); };
+        grid.appendChild(btn);
+    });
+
+    function selectIngredient(ing) {
+        if (selected.length >= 3 || isMixingPhase) return;
+        selected.push(ing);
+        document.getElementById(`badge-${ing.id}`).innerText = selected.filter(item => item.id === ing.id).length;
+        document.getElementById(`badge-${ing.id}`).style.display = 'flex';
+        liquid.style.background = ing.color;
+        if (selected.length === 3) setTimeout(startMixingPhase, 400);
+        else statusMsg.innerText = `${selected.length}つ目の素材を投入しました`;
+    }
+
+    function startMixingPhase() {
+        isMixingPhase = true;
+        statusMsg.innerText = "スプーンを動かして\nゆっくり混ぜてください";
+        ladle.style.display = 'block';
+        progressContainer.style.display = 'block';
+    }
+
+    window.addEventListener('pointermove', (e) => {
+        if (!isMixingPhase) return;
+        ladle.style.left = e.clientX + 'px';
+        ladle.style.top = e.clientY + 'px';
+        if (lastX !== 0 && lastY !== 0) {
+            const dist = Math.sqrt(Math.pow(e.clientX - lastX, 2) + Math.pow(e.clientY - lastY, 2));
+            if (dist > 2) {
+                mixProgress += dist * 0.15;
+                if (mixProgress >= 100) {
+                    mixProgress = 100;
+                    progressFill.style.width = '100%';
+                    setTimeout(finishMixing, 300);
+                } else {
+                    progressFill.style.width = mixProgress + '%';
+                }
+            }
+        }
+        lastX = e.clientX; lastY = e.clientY;
+    });
+
+    function finishMixing() {
+        if (!isMixingPhase) return;
+        isMixingPhase = false;
+        ladle.style.display = 'none';
+        showResult();
+    }
+
+    function getRarity() {
+        const ids = selected.map(s => s.id);
+        const uniqueCount = new Set(ids).size;
+        
+        // 3つ同じ材料
+        if (uniqueCount === 1) return 'SR';
+        
+        // 特定のSR組み合わせ（例：砂＋滴＋電池＝伝説のエネルギー）
+        const combo = ids.sort().join(',');
+        if (combo === "3,4,5") return 'SR';
+        
+        // 2つ同じ材料
+        if (uniqueCount === 2) return 'RARE';
+        
+        // 特定のRARE組み合わせ（例：スライム＋毛）
+        if (ids.includes(0) && ids.includes(11)) return 'RARE';
+
+        return 'NORMAL';
+    }
+
+    function showResult() {
+        const [a, b, c] = selected;
+        const rarity = getRarity();
+        const card = document.getElementById('result-card');
+        const badge = document.getElementById('rarity-label');
+        
+        card.className = ''; // クラスリセット
+        badge.className = 'rarity-badge';
+
+        if (rarity === 'SR') {
+            card.classList.add('sr');
+            badge.classList.add('badge-sr');
+            badge.innerText = 'SUPER RARE';
+        } else if (rarity === 'RARE') {
+            card.classList.add('rare');
+            badge.classList.add('badge-rare');
+            badge.innerText = 'RARE';
+        } else {
+            badge.classList.add('badge-normal');
+            badge.innerText = 'NORMAL';
+        }
+
+        let name = "";
+        if (rarity === 'SR' && new Set(selected.map(s=>s.id)).size === 1) {
+            name = `真・${a.name}`;
+        } else {
+            name = `${a.tags[0]}${b.tags[1]}${c.name.slice(-2)}液`;
+        }
+        
+        const intros = [
+            `【検体】${a.name}を基材とした調合物。`,
+            `【特性】${c.name}の反応により、独自の性質を得ています。`,
+            `【外観】${a.tags[1]}質感が非常に強く出ています。`
+        ];
+        const effects = [
+            `【効果】一口で${b.tags[1]}感覚が広がり、${c.name}の香りが漂います。`,
+            `【反応】${a.tags[0]}性質を持ち、周囲を${c.tags[1]}変化させます。`,
+            `【備考】${b.name}が全体を安定させており、完成度は高いです。`
+        ];
+        const warnings = [
+            `【懸念】${a.tags[1]}状態が長く続くと変質する恐れがあります。`,
+            `【注意】${c.name}の影響で、まれに${a.tags[0]}反応が見られます。`,
+            `【結論】極めて${rarity === 'SR' ? '希少' : '興味深い'}標本として記録しました。`
+        ];
+
+        document.getElementById('result-name').innerText = name;
+        document.getElementById('result-desc').innerHTML = 
+            `${intros[Math.floor(Math.random()*3)]}<br><br>${effects[Math.floor(Math.random()*3)]}<br><br>${warnings[Math.floor(Math.random()*3)]}`;
+        document.getElementById('result-overlay').style.display = 'flex';
+    }
+
+    function resetGame() {
+        selected = []; mixProgress = 0; isMixingPhase = false;
+        lastX = 0; lastY = 0;
+        document.getElementById('result-overlay').style.display = 'none';
+        progressContainer.style.display = 'none';
+        progressFill.style.width = '0%';
+        statusMsg.innerText = "素材を3つ選んでください";
+        document.querySelectorAll('.count-badge').forEach(b => b.style.display = 'none');
+    }
+</script>
+
+</body>
+</html>
