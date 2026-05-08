@@ -150,7 +150,7 @@
     </div>
 
     <div id="result-overlay">
-        <div id="result-card" id="card-body">
+        <div id="result-card">
             <div id="rarity-label" class="rarity-badge">NORMAL</div>
             <div id="result-potion" style="font-size: 80px;">🧪</div>
             <h2 id="result-name">薬の名前</h2>
@@ -243,20 +243,11 @@
     function getRarity() {
         const ids = selected.map(s => s.id);
         const uniqueCount = new Set(ids).size;
-        
-        // 3つ同じ材料
         if (uniqueCount === 1) return 'SR';
-        
-        // 特定のSR組み合わせ（例：砂＋滴＋電池＝伝説のエネルギー）
         const combo = ids.sort().join(',');
         if (combo === "3,4,5") return 'SR';
-        
-        // 2つ同じ材料
         if (uniqueCount === 2) return 'RARE';
-        
-        // 特定のRARE組み合わせ（例：スライム＋毛）
         if (ids.includes(0) && ids.includes(11)) return 'RARE';
-
         return 'NORMAL';
     }
 
@@ -266,7 +257,7 @@
         const card = document.getElementById('result-card');
         const badge = document.getElementById('rarity-label');
         
-        card.className = ''; // クラスリセット
+        card.className = ''; 
         badge.className = 'rarity-badge';
 
         if (rarity === 'SR') {
@@ -282,11 +273,23 @@
             badge.innerText = 'NORMAL';
         }
 
+        // --- 名前生成ロジックの修正 ---
         let name = "";
+        const nounify = (tag) => tag.replace(/(のある|な|の|した|の高い|の強い|的な)$/, "");
+        const baseify = (str) => str.replace(/^(多色|乾燥した|発光する|澄んだ|高密度|硝子の|古い|灰色の)/, "");
+
+        const p1 = nounify(a.tags[0]);
+        const p2 = nounify(b.tags[1]);
+        const base = baseify(c.name);
+
         if (rarity === 'SR' && new Set(selected.map(s=>s.id)).size === 1) {
             name = `真・${a.name}`;
+        } else if (rarity === 'SR') {
+            name = `神託の${p1}${p2}${base}`;
+        } else if (rarity === 'RARE') {
+            name = `${p1}と${p2}の${base}抽出液`;
         } else {
-            name = `${a.tags[0]}${b.tags[1]}${c.name.slice(-2)}液`;
+            name = `${p1}${p2}${base}液`;
         }
         
         const intros = [
